@@ -190,3 +190,19 @@ environment {
 ```groovy
 git branch: 'main', url: 'https://github.com/dewanshuf/aws-project'
 ```
+
+##  Screenshots
+
+### 1. React Application Running
+![React Application](screenshots/react-application.png)
+*The React application successfully deployed and running in the browser*
+
+### 2. Jenkins CI/CD Pipeline
+![Jenkins Pipeline](screenshots/pipeline.png)
+*Jenkins pipeline executing all stages successfully for automated deployment*
+
+### 3. Docker Container Status
+![Docker Container](screenshots/docker-container-terminal.png)
+*Terminal showing Docker container running the React application*
+
+---
