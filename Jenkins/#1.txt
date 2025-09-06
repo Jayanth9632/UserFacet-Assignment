@@ -1,0 +1,172 @@
+Started by user Jayanth 
+[Pipeline] Start of Pipeline
+[Pipeline] node
+Running on Jenkins in /var/lib/jenkins/workspace/Reactapp-userfacet
+[Pipeline] {
+[Pipeline] withEnv
+[Pipeline] {
+[Pipeline] stage
+[Pipeline] { (Clone Repository)
+[Pipeline] git
+The recommended git tool is: NONE
+No credentials specified
+Cloning the remote Git repository
+Cloning repository https://github.com/dewanshuf/aws-project
+ > /usr/bin/git init /var/lib/jenkins/workspace/Reactapp-userfacet # timeout=10
+Fetching upstream changes from https://github.com/dewanshuf/aws-project
+ > /usr/bin/git --version # timeout=10
+ > git --version # 'git version 2.34.1'
+ > /usr/bin/git fetch --tags --force --progress -- https://github.com/dewanshuf/aws-project +refs/heads/*:refs/remotes/origin/* # timeout=10
+ > /usr/bin/git config remote.origin.url https://github.com/dewanshuf/aws-project # timeout=10
+ > /usr/bin/git config --add remote.origin.fetch +refs/heads/*:refs/remotes/origin/* # timeout=10
+Avoid second fetch
+ > /usr/bin/git rev-parse refs/remotes/origin/main^{commit} # timeout=10
+Checking out Revision d50687bce8ea3ea679b467426f0be5676e4f06b7 (refs/remotes/origin/main)
+ > /usr/bin/git config core.sparsecheckout # timeout=10
+ > /usr/bin/git checkout -f d50687bce8ea3ea679b467426f0be5676e4f06b7 # timeout=10
+ > /usr/bin/git branch -a -v --no-abbrev # timeout=10
+ > /usr/bin/git checkout -b main d50687bce8ea3ea679b467426f0be5676e4f06b7 # timeout=10
+Commit message: "Initialize project using Create React App"
+First time build. Skipping changelog.
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Ensure Dockerfile Exists)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] fileExists
+[Pipeline] writeFile
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Build Docker Image)
+[Pipeline] sh
++ docker build -t react-app:latest .
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+            Install the buildx component to build images with BuildKit:
+            https://docs.docker.com/go/buildx/
+
+Sending build context to Docker daemon  960.5kB
+Step 1/12 : FROM node:20-alpine AS build
+ ---> 6c47bbfd232e
+Step 2/12 : WORKDIR /app
+ ---> Using cache
+ ---> 7f0a3d057816
+Step 3/12 : COPY package*.json ./
+ ---> Using cache
+ ---> 7c5d1d00c0dd
+Step 4/12 : RUN npm ci --silent
+ ---> Using cache
+ ---> 85c9d8c3392f
+Step 5/12 : COPY . .
+ ---> db89481d9c68
+Step 6/12 : RUN npm run build
+ ---> Running in daf2288e195d
+
+> my-app@0.1.0 build
+> react-scripts build
+
+Creating an optimized production build...
+Compiled successfully.
+
+File sizes after gzip:
+
+  59.11 kB  build/static/js/main.7052639e.js
+  1.77 kB   build/static/js/453.96453769.chunk.js
+  513 B     build/static/css/main.f855e6bc.css
+
+The project was built assuming it is hosted at /.
+You can control this with the homepage field in your package.json.
+
+The build folder is ready to be deployed.
+You may serve it with a static server:
+
+  npm install -g serve
+  serve -s build
+
+Find out more about deployment here:
+
+  https://cra.link/deployment
+
+ ---> Removed intermediate container daf2288e195d
+ ---> 6ecf2886fc86
+Step 7/12 : FROM node:20-alpine
+ ---> 6c47bbfd232e
+Step 8/12 : WORKDIR /app
+ ---> Using cache
+ ---> 7f0a3d057816
+Step 9/12 : RUN npm install -g serve
+ ---> Using cache
+ ---> 4b951fa9e423
+Step 10/12 : COPY --from=build /app/build ./build
+ ---> Using cache
+ ---> d25a54aa3ce0
+Step 11/12 : EXPOSE 3000
+ ---> Using cache
+ ---> 9c565d7f3637
+Step 12/12 : CMD ["serve", "-s", "build", "-l", "3000"]
+ ---> Using cache
+ ---> 8fa93c82e6d7
+Successfully built 8fa93c82e6d7
+Successfully tagged react-app:latest
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Run Container)
+[Pipeline] sh
++ docker rm -f react-app
+react-app
++ docker run -d --name react-app -p 3000:3000 react-app:latest
+be03a5f45e5b1ce86b4e229c5eb8e50f6b6bb25174ef1509dcf3a89503a8d3fb
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Configure Nginx)
+[Pipeline] sh
++ echo server {
+                    listen 80 default_server;
+                    server_name _;
+                    location / {
+                        proxy_pass http://127.0.0.1:3000;
+                        proxy_set_header Host $host;
+                        proxy_set_header X-Real-IP $remote_addr;
+                        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                        proxy_set_header X-Forwarded-Proto $scheme;
+                    }
+                }
++ sudo tee /etc/nginx/sites-available/react_app
+server {
+                    listen 80 default_server;
+                    server_name _;
+                    location / {
+                        proxy_pass http://127.0.0.1:3000;
+                        proxy_set_header Host $host;
+                        proxy_set_header X-Real-IP $remote_addr;
+                        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                        proxy_set_header X-Forwarded-Proto $scheme;
+                    }
+                }
++ sudo ln -sf /etc/nginx/sites-available/react_app /etc/nginx/sites-enabled/react_app
++ sudo rm -f /etc/nginx/sites-enabled/default
++ sudo nginx -t
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
++ sudo systemctl restart nginx
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Declarative: Post Actions)
+[Pipeline] echo
+Application deployed successfully!
+[Pipeline] echo
+Access it here: http://54.146.235.126/
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] }
+[Pipeline] // withEnv
+[Pipeline] }
+[Pipeline] // node
+[Pipeline] End of Pipeline
+Finished: SUCCESS

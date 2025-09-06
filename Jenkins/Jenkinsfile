@@ -1,0 +1,92 @@
+pipeline {
+    agent any
+
+    environment {
+        APP_NAME = "react-app"
+        APP_PORT = "3000"
+        PUBLIC_IP = "54.146.235.126"
+    }
+
+    stages {
+        stage('Clone Repository') {
+            steps {
+                git branch: 'main', url: 'https://github.com/dewanshuf/aws-project'
+            }
+        }
+
+        stage('Ensure Dockerfile Exists') {
+            steps {
+                script {
+                    if (!fileExists('Dockerfile')) {
+                        writeFile file: 'Dockerfile', text: '''
+# --- Build stage ---
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --silent
+COPY . .
+RUN npm run build
+
+# --- Runtime stage ---
+FROM node:20-alpine
+WORKDIR /app
+RUN npm install -g serve
+COPY --from=build /app/build ./build
+EXPOSE 3000
+CMD ["serve", "-s", "build", "-l", "3000"]
+'''
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t $APP_NAME:latest .'
+            }
+        }
+
+        stage('Run Container') {
+            steps {
+                sh '''
+                docker rm -f $APP_NAME || true
+                docker run -d --name $APP_NAME -p $APP_PORT:$APP_PORT $APP_NAME:latest
+                '''
+            }
+        }
+
+        stage('Configure Nginx') {
+            steps {
+                sh '''
+                echo "server {
+                    listen 80 default_server;
+                    server_name _;
+                    location / {
+                        proxy_pass http://127.0.0.1:$APP_PORT;
+                        proxy_set_header Host \\$host;
+                        proxy_set_header X-Real-IP \\$remote_addr;
+                        proxy_set_header X-Forwarded-For \\$proxy_add_x_forwarded_for;
+                        proxy_set_header X-Forwarded-Proto \\$scheme;
+                    }
+                }" | sudo tee /etc/nginx/sites-available/react_app
+
+                sudo ln -sf /etc/nginx/sites-available/react_app /etc/nginx/sites-enabled/react_app
+                sudo rm -f /etc/nginx/sites-enabled/default
+                sudo nginx -t
+                sudo systemctl restart nginx
+                '''
+            }
+        }
+    }
+
+
+    post {
+        success {
+            echo "Application deployed successfully!"
+            echo "Access it here: http://${PUBLIC_IP}/"
+        }
+        failure {
+            echo "build or deployment failed!"
+        }
+    }
+}
